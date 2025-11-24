@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ryo Compass v4.0</title>
+<style>
+  :root { --bg-color: #0f172a; --text-color: #e2e8f0; --accent-color: #3b82f6; --record-color: #ef4444; --panel-bg: rgba(30, 41, 59, 0.95); --border-color: #334155; --line-color: #475569; }
+  body { margin: 0; background-color: var(--bg-color); color: var(--text-color); font-family: "Helvetica Neue", Arial, sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+  
+  header { background: rgba(15, 23, 42, 0.9); padding: 8px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+  .app-title { font-weight: bold; color: var(--accent-color); letter-spacing: 1px; }
+  .header-controls { display: flex; gap: 8px; align-items: center; }
+  .mode-switch button { background: transparent; border: 1px solid var(--border-color); color: #94a3b8; padding: 4px 12px; border-radius: 12px; cursor: pointer; }
+  .mode-switch button.active { background: var(--accent-color); color: white; border-color: var(--accent-color); }
+  .reset-btn { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 4px 8px; border-radius: 8px; font-size: 0.7rem; cursor: pointer; }
+  
+  #matrix-container { position: relative; flex-grow: 1; width: 100%; overflow: hidden; background-image: radial-gradient(#1e293b 1px, transparent 1px); background-size: 40px 40px; }
+  #connections-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+  .connection-line { stroke: var(--line-color); stroke-width: 2; fill: none; stroke-dasharray: 5; animation: dash 30s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset: 1000; } }
+  
+  .axis-x { position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: var(--border-color); z-index: 0; }
+  .axis-y { position: absolute; left: 50%; top: 0; width: 1px; height: 100%; background: var(--border-color); z-index: 0; }
+  .label { position: absolute; font-size: 0.7rem; color: #64748b; font-weight: bold; pointer-events: none; z-index: 2; }
+  
+  .node { position: absolute; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; transform: translate(-50%, -50%); cursor: pointer; user-select: none; z-index: 5; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.2s; background: rgba(30, 41, 59, 0.95); border: 1px solid #475569; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node:hover { z-index: 100; transform: translate(-50%, -50%) scale(1.1); border-color: var(--accent-color); }
+  .node.is-hub { background: var(--accent-color); color: white; font-weight: bold; border: none; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); z-index: 4; }
+  
+  .node .detail { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: 200px; padding: 8px; margin-top: 8px; background: rgba(15, 23, 42, 0.95); border: 1px solid var(--border-color); border-radius: 6px; color: #cbd5e1; font-size: 0.75rem; white-space: normal; }
+  .node:hover .detail { display: block; }
+  
+  .input-panel { background: var(--panel-bg); padding: 10px 15px 20px 15px; border-top: 1px solid var(--border-color); display: flex; gap: 10px; z-index: 20; }
+  textarea { flex-grow: 1; height: 50px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 10px; padding: 8px; color: white; font-size: 16px; resize: none; }
+  .mic-btn { width: 50px; height: 50px; border-radius: 50%; background: var(--border-color); border: none; color: white; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+  .mic-btn.recording { background: var(--record-color); animation: pulse 1.5s infinite; }
+  .analyze-btn { width: 60px; border-radius: 10px; background: var(--accent-color); color: white; border: none; font-weight: bold; cursor: pointer; }
+  @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="app-title">Ryo Compass</div>
+  <div class="header-controls">
+    <div class="mode-switch">
+      <button id="btn-life" class="active" onclick="setMode('life')">LIFE</button>
+      <button id="btn-study" onclick="setMode('study')">STUDY</button>
+    </div>
+    <button class="reset-btn" onclick="resetData()">Clear</button>
+  </div>
+</header>
+
+<div id="matrix-container">
+  <svg id="connections-layer"></svg>
+  <div class="axis-x"></div>
+  <div class="axis-y"></div>
+  <div id="labels-container"></div>
+</div>
+
+<div class="input-panel">
+  <textarea id="input-text" placeholder="思考を入力..."></textarea>
+  <button id="mic-btn" class="mic-btn" onclick="toggleRecording()">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+  </button>
+  <button class="analyze-btn" onclick="analyzeThought()">Plot</button>
+</div>
+
+<script>
+// --- 初期データ定義 ---
+const defaultModes = {
+  life: {
+    labels: { top: "WORLD", bottom: "SELF", left: "PAST", right: "FUTURE" },
+    nodes: [
+      { id: "h1", text: "未来", detail: "Future Hub", x: 80, y: 50, type: "hub" },
+      { id: "h2", text: "過去", detail: "Past Hub", x: 20, y: 50, type: "hub" },
+      { id: "h3", text: "自分", detail: "Self Hub", x: 50, y: 80, type: "hub" },
+      { id: "n1", text: "進化速度", detail: "進化速度を基準にする", x: 85, y: 20, type: "record", parentId: "h1" }
+    ]
+  },
+  study: {
+    labels: { top: "APPLIED", bottom: "BASIC", left: "THEORY", right: "PRACTICE" },
+    nodes: [
+      { id: "sh1", text: "実践", detail: "Practice Hub", x: 80, y: 50, type: "hub" },
+      { id: "sn1", text: "Python", detail: "コードを書く", x: 85, y: 60, type: "record", parentId: "sh1" }
+    ]
+  }
+};
+
+// グローバル変数
+let modes = JSON.parse(JSON.stringify(defaultModes));
+let currentMode = 'life';
+
+// --- 保存・読み込み (LocalStorage) ---
+function saveData() {
+  localStorage.setItem('ryo_compass_v4', JSON.stringify(modes));
+}
+function loadData() {
+  const data = localStorage.getItem('ryo_compass_v4');
+  if (data) {
+    try { modes = JSON.parse(data); } catch(e) { console.error("Load failed", e); }
+  }
+}
+function resetData() {
+  if(!confirm("全てのデータをリセットして初期状態に戻しますか？")) return;
+  modes = JSON.parse(JSON.stringify(defaultModes));
+  saveData();
+  setMode(currentMode);
+}
+
+// --- 初期化 ---
+window.onload = function() {
+  loadData(); // 起動時にロード
+  setMode('life');
+};
+
+window.setMode = function(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-switch button').forEach(b => b.classList.remove('active'));
+  document.getElementById(`btn-${mode}`).classList.add('active');
+  const c = document.getElementById('labels-container'); c.innerHTML = '';
+  const l = modes[mode].labels;
+  const p = [{t:l.top,s:"top:10px;left:50%;transform:translateX(-50%);"},{t:l.bottom,s:"bottom:10px;left:50%;transform:translateX(-50%);"},{t:l.left,s:"top:50%;left:10px;transform:translateY(-50%);"},{t:l.right,s:"top:50%;right:10px;transform:translateY(-50%);"}];
+  p.forEach(x => { const d=document.createElement('div'); d.className='label'; d.style=x.s; d.innerText=x.t; c.appendChild(d); });
+  renderGraph();
+}
+
+window.renderGraph = function() {
+  const container = document.getElementById('matrix-container');
+  const svg = document.getElementById('connections-layer');
+  svg.innerHTML = ''; 
+  container.querySelectorAll('.node').forEach(e => e.remove());
+  const list = modes[currentMode].nodes;
+  list.forEach(n => { if(n.parentId){ const p=list.find(x=>x.id===n.parentId); if(p) drawLine(svg,p.x,p.y,n.x,n.y); }});
+  list.forEach(d => {
+    const el = document.createElement('div'); el.className = `node ${d.type==='hub'?'is-hub':''}`; el.innerText = d.text;
+    const dt = document.createElement('div'); dt.className = 'detail'; dt.innerText = d.detail||d.text; el.appendChild(dt);
+    el.style.left = `${d.x}%`; el.style.top = `${d.y}%`; container.appendChild(el);
+  });
+}
+
+function drawLine(svg, x1, y1, x2, y2) {
+  const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  l.setAttribute('x1', `${x1}%`); l.setAttribute('y1', `${y1}%`); l.setAttribute('x2', `${x2}%`); l.setAttribute('y2', `${y2}%`);
+  l.setAttribute('class', 'connection-line'); svg.appendChild(l);
+}
+
+window.analyzeThought = function() {
+  const input = document.getElementById('input-text');
+  const text = input.value.trim();
+  if (!text) return;
+  const btn = document.querySelector('.analyze-btn'); btn.innerText = "...";
+  setTimeout(() => {
+    let x = 50 + (Math.random()*30-15); let y = 50 + (Math.random()*30-15);
+    if(text.includes("未来")||text.includes("コード")) x=80; if(text.includes("過去")||text.includes("理論")) x=20;
+    if(text.includes("自分")) y=80; if(text.includes("世界")) y=20;
+    
+    const list = modes[currentMode].nodes;
+    let parentId = null;
+    if(text.includes("未来")) parentId = list.find(n=>n.text==="未来")?.id;
+    else if(text.includes("過去")) parentId = list.find(n=>n.text==="過去")?.id;
+    else if(text.includes("自分")) parentId = list.find(n=>n.text==="自分")?.id;
+    
+    if(!parentId){
+       const hubs = list.filter(n=>n.type==='hub');
+       let m = 9999; hubs.forEach(h=>{ const d=Math.sqrt(Math.pow(h.x-x,2)+Math.pow(h.y-y,2)); if(d<m){m=d;parentId=h.id;} });
+    }
+    
+    modes[currentMode].nodes.push({ id: "n"+Date.now(), text: text.length>8?text.substring(0,8)+"...":text, detail: text, x, y, type: "record", parentId });
+    saveData(); // ★保存★
+    renderGraph();
+    input.value = ""; btn.innerText = "Plot";
+  }, 400);
+}
+
+// --- 音声入力 ---
+const micBtn = document.getElementById('mic-btn');
+const textarea = document.getElementById('input-text');
+let recognition = null;
+let isRecording = false;
+let finalTranscript = '';
+
+// ブラウザ対応チェック
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ja-JP'; 
+  recognition.continuous = true; 
+  recognition.interimResults = true;
+  
+  recognition.onend = () => { if(isRecording) try{recognition.start()}catch(e){} else micBtn.classList.remove('recording'); };
+  
+  recognition.onresult = (e) => {
+    let interimTranscript = '';
+    for (let i = e.resultIndex; i < e.results.length; ++i) {
+      if (e.results[i].isFinal) {
+        finalTranscript += e.results[i][0].transcript;
+      } else {
+        interimTranscript += e.results[i][0].transcript;
+      }
+    }
+    textarea.value = finalTranscript + interimTranscript;
+  };
+
+  recognition.onerror = (e) => {
+    if(e.error === 'aborted' || e.error === 'no-speech') return;
+    console.error("Speech Error:", e.error);
+    stopRecording();
+  };
+
+} else {
+  micBtn.style.display = 'none';
+}
+
+window.toggleRecording = () => {
+    if(isRecording) {
+        stopRecording();
+    } else {
+        finalTranscript = textarea.value; 
+        startRecording();
+    }
+};
+
+function startRecording() { isRecording=true; micBtn.classList.add('recording'); recognition.start(); }
+function stopRecording() { isRecording=false; micBtn.classList.remove('recording'); recognition.stop(); }
+</script>
+</body>
+</html>

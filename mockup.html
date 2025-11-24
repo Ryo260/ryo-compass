@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ryo System - Galaxy of Thoughts</title>
+<style>
+  :root {
+    --bg-color: #0f172a; /* ミッドナイトブルー */
+    --axis-color: #334155;
+    --text-main: #e2e8f0;
+    --highlight: #3b82f6;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    overflow: hidden; /* 宇宙感を出すためスクロール禁止 */
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* --- マトリクス軸 --- */
+  .matrix-container {
+    position: relative;
+    width: 90vw;
+    height: 90vh;
+    border: 1px solid var(--axis-color);
+  }
+  
+  .axis-x, .axis-y {
+    position: absolute;
+    background-color: var(--axis-color);
+  }
+  
+  .axis-x {
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+  }
+  
+  .axis-y {
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 100%;
+  }
+
+  /* --- 軸ラベル --- */
+  .label {
+    position: absolute;
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: bold;
+    pointer-events: none;
+  }
+  .label-top { top: 10px; left: 50%; transform: translateX(-50%); content: "WORLD (世界)"; }
+  .label-bottom { bottom: 10px; left: 50%; transform: translateX(-50%); content: "SELF (自分)"; }
+  .label-left { top: 50%; left: 10px; transform: translateY(-50%); content: "PAST (過去)"; }
+  .label-right { top: 50%; right: 10px; transform: translateY(-50%); content: "FUTURE (未来)"; }
+
+  /* --- 思考ノード（共通デザイン） --- */
+  .node {
+    position: absolute;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    max-width: 180px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    /* 初期位置は中心において、JSで散らす想定だが今回はCSSで配置 */
+  }
+
+  .node:hover {
+    z-index: 100;
+    transform: scale(1.1);
+    box-shadow: 0 10px 15px rgba(0,0,0,0.5);
+  }
+
+  /* 詳細（ツールチップ的表示） */
+  .node .detail {
+    display: none;
+    margin-top: 5px;
+    font-size: 0.75rem;
+    opacity: 0.8;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    padding-top: 4px;
+  }
+  .node:hover .detail {
+    display: block;
+  }
+
+  /* --- ステータス別デザイン --- */
+  
+  /* 1. 仮説 (Hypothesis): 点線枠・背景薄め */
+  .status-hypothesis {
+    border: 1px dashed #94a3b8;
+    background-color: rgba(30, 41, 59, 0.8);
+    color: #cbd5e1;
+  }
+
+  /* 2. 記録 (Record): 実線枠・シンプル */
+  .status-record {
+    border: 1px solid #64748b;
+    background-color: rgba(51, 65, 85, 0.9);
+    color: #f1f5f9;
+  }
+
+  /* 3. 分析/洞察 (Insight): 色付き・強調 */
+  .status-insight {
+    border: none;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8); /* 青系のグラデーション */
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 0 15px rgba(37, 99, 235, 0.4); /* 発光表現 */
+  }
+
+</style>
+</head>
+<body>
+
+<div class="matrix-container">
+  <div class="axis-x"></div>
+  <div class="axis-y"></div>
+  <div class="label label-top">WORLD (世界・他者)</div>
+  <div class="label label-bottom">SELF (自分・感情)</div>
+  <div class="label label-left">PAST (過去・事実)</div>
+  <div class="label label-right">FUTURE (未来・予測)</div>
+
+  <div class="node status-insight" style="top: 20%; left: 70%;">
+    進化速度が判断基準
+    <div class="detail">日清食品のように毎週進化するものが未来の技術だ</div>
+  </div>
+  
+  <div class="node status-hypothesis" style="top: 35%; left: 80%;">
+    アーリーアダプターを観察
+    <div class="detail">技術に触れ続けている人のメモこそが未来予測になるのでは？</div>
+  </div>
+
+  <div class="node status-insight" style="top: 70%; left: 75%;">
+    一次体験が最重要
+    <div class="detail">情報収集より、実際に触ってどう感じたかを重視する</div>
+  </div>
+
+  <div class="node status-hypothesis" style="top: 60%; left: 65%;">
+    不確実性を制御したい？
+    <div class="detail">未来を知る方法を探している＝現状への不安の裏返し</div>
+  </div>
+
+  <div class="node status-record" style="top: 25%; left: 20%;">
+    過去の技術受容を学ぶ
+    <div class="detail">当時の人々は新技術をどう思ったか？歴史からの学習</div>
+  </div>
+
+   <div class="node status-record" style="top: 40%; left: 30%;">
+    江戸時代の食生活
+    <div class="detail">1日2食だったという事実</div>
+  </div>
+
+  <div class="node status-hypothesis" style="top: 75%; left: 25%; opacity: 0.5;">
+    (データなし)
+    <div class="detail">ここが空白なのは、自分の過去を振り返れていない証拠かも？</div>
+  </div>
+
+</div>
+
+</body>
+</html>
